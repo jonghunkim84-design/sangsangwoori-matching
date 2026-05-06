@@ -8,9 +8,9 @@ export type MatchScore = {
 
 export function calculateScore(senior: Senior, job: Job): number {
   let score = 0;
-  if (senior.region.trim() === job.region.trim()) score += 40;       // 지역 일치
-  if (senior.desired_job.trim() === job.job_type.trim()) score += 40; // 직종 일치
-  if (senior.career_years >= job.required_career) score += 20;        // 경력 충족
+  if (senior.region.trim() === job.region.trim()) score += 3;
+  if (senior.desired_job.trim() === job.job_type.trim()) score += 2;
+  if (senior.career_years >= job.required_career) score += 1;
   return score;
 }
 

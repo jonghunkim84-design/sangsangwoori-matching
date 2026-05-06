@@ -28,6 +28,6 @@ export type Match = {
   senior_id: string;
   job_id: string;
   score: number;
-  status: "pending" | "confirmed";
+  status: "pending" | "assigned" | "done";
   created_at: string;
 };

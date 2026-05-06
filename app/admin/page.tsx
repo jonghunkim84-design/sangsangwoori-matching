@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import ConfirmButton from "./ConfirmButton";
 import JobManager from "./JobManager";
 
 type SeniorRow = {
@@ -14,40 +13,80 @@ type SeniorRow = {
 
 type MatchRow = {
   id: string;
+  senior_id: string;
   score: number;
   status: string;
-  seniors: SeniorRow | null;
-  jobs: {
-    title: string;
-    region: string;
-    job_type: string;
-    required_career: number;
-  } | null;
 };
+
+function seniorStatus(matches: MatchRow[]): "미매칭" | "매칭대기" | "배정완료" {
+  if (matches.length === 0) return "미매칭";
+  if (matches.some((m) => m.status === "assigned" || m.status === "done"))
+    return "배정완료";
+  return "매칭대기";
+}
+
+function ScoreBadge({ score }: { score: number }) {
+  const cls =
+    score === 6
+      ? "bg-yellow-400 text-yellow-900"
+      : score >= 4
+      ? "bg-green-600 text-white"
+      : "bg-gray-400 text-white";
+  return (
+    <Badge className={`text-base px-3 py-1 ${cls}`}>{score}점</Badge>
+  );
+}
 
 export default async function AdminPage() {
   const [{ data: rawSeniors }, { data: rawMatches }] = await Promise.all([
-    supabase.from("seniors").select("id, name, region, desired_job, career_years"),
     supabase
-      .from("matches")
-      .select(
-        "id, score, status, seniors(id, name, region, desired_job, career_years), jobs(title, region, job_type, required_career)"
-      )
-      .order("score", { ascending: false }),
+      .from("seniors")
+      .select("id, name, region, desired_job, career_years")
+      .order("created_at", { ascending: false }),
+    supabase.from("matches").select("id, senior_id, score, status"),
   ]);
 
   const seniors = (rawSeniors ?? []) as SeniorRow[];
-  const matches = (rawMatches ?? []) as unknown as MatchRow[];
+  const allMatches = (rawMatches ?? []) as MatchRow[];
 
-  const matchedIds = new Set(matches.map((m) => m.seniors?.id).filter(Boolean));
-  const unmatched = seniors.filter((s) => !matchedIds.has(s.id));
-  const pending   = matches.filter((m) => m.status === "pending");
-  const confirmed = matches.filter((m) => m.status === "confirmed");
+  const matchesBySenior = new Map<string, MatchRow[]>();
+  for (const m of allMatches) {
+    if (!matchesBySenior.has(m.senior_id))
+      matchesBySenior.set(m.senior_id, []);
+    matchesBySenior.get(m.senior_id)!.push(m);
+  }
+
+  const seniorData = seniors.map((s) => {
+    const matches = matchesBySenior.get(s.id) ?? [];
+    const status = seniorStatus(matches);
+    const bestScore =
+      matches.length > 0 ? Math.max(...matches.map((m) => m.score)) : null;
+    return { ...s, status, bestScore };
+  });
+
+  const unmatched = seniorData.filter((s) => s.status === "미매칭");
+  const pending = seniorData.filter((s) => s.status === "매칭대기");
+  const assigned = seniorData.filter((s) => s.status === "배정완료");
 
   const summary = [
-    { label: "미매칭",  count: unmatched.length, color: "bg-red-50 border-red-200",    text: "text-red-700"   },
-    { label: "매칭 대기", count: pending.length,  color: "bg-yellow-50 border-yellow-200", text: "text-yellow-700" },
-    { label: "배정 완료", count: confirmed.length, color: "bg-green-50 border-green-200", text: "text-green-700"  },
+    {
+      label: "미매칭",
+      count: unmatched.length,
+      color: "bg-red-50 border-red-200",
+      text: "text-red-700",
+    },
+    {
+      label: "매칭 대기",
+      count: pending.length,
+      color: "bg-yellow-50 border-yellow-200",
+      text: "text-yellow-700",
+    },
+    {
+      label: "배정 완료",
+      count: assigned.length,
+      color: "bg-green-50 border-green-200",
+      text: "text-green-700",
+    },
   ];
 
   return (
@@ -73,120 +112,75 @@ export default async function AdminPage() {
         ))}
       </div>
 
+      {/* 시니어 목록 */}
+      <section>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">시니어 목록</h2>
+        {seniors.length === 0 ? (
+          <p className="text-lg text-gray-400 py-4">
+            등록된 시니어가 없습니다.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border-2 border-gray-200">
+            <table className="w-full text-lg">
+              <thead>
+                <tr className="border-b-2 border-gray-200 bg-gray-50 text-left">
+                  <th className="px-4 py-3 font-semibold text-gray-700">이름</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">지역</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">희망 직종</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">최고 점수</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">상태</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {seniorData.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-4 py-4 font-medium">{s.name}</td>
+                    <td className="px-4 py-4">{s.region}</td>
+                    <td className="px-4 py-4">{s.desired_job}</td>
+                    <td className="px-4 py-4">
+                      {s.bestScore !== null ? (
+                        <ScoreBadge score={s.bestScore} />
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span
+                        className={
+                          s.status === "배정완료"
+                            ? "text-green-700 font-semibold"
+                            : s.status === "매칭대기"
+                            ? "text-yellow-700 font-semibold"
+                            : "text-red-600 font-semibold"
+                        }
+                      >
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <a
+                        href={`/recommendations?senior_id=${s.id}`}
+                        className="text-blue-600 hover:underline font-medium"
+                      >
+                        상세보기
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {/* 일자리 관리 */}
       <div className="border-t-2 border-gray-200 pt-10">
         <JobManager />
       </div>
-
-      <div className="border-t-2 border-gray-200 pt-10" />
-
-      {/* 매칭 현황 */}
-      <h2 className="text-3xl font-bold text-gray-900">매칭 현황</h2>
-
-      {/* 미매칭 */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold">미매칭</h2>
-          <Badge className="bg-red-100 text-red-800 text-base px-3 py-1">
-            {unmatched.length}명
-          </Badge>
-        </div>
-        {unmatched.length === 0 ? (
-          <p className="text-lg text-gray-400 py-2">해당 없음</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {unmatched.map((s) => (
-              <Card key={s.id} className="border-2 border-red-100">
-                <CardContent className="pt-5 space-y-1">
-                  <p className="text-xl font-semibold">{s.name}</p>
-                  <p className="text-lg text-gray-600">지역: {s.region}</p>
-                  <p className="text-lg text-gray-600">희망 직종: {s.desired_job}</p>
-                  <p className="text-lg text-gray-600">경력: {s.career_years}년</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* 매칭 대기 */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold">매칭 대기</h2>
-          <Badge className="bg-yellow-100 text-yellow-800 text-base px-3 py-1">
-            {pending.length}건
-          </Badge>
-        </div>
-        {pending.length === 0 ? (
-          <p className="text-lg text-gray-400 py-2">해당 없음</p>
-        ) : (
-          <div className="space-y-4">
-            {pending.map((m) => (
-              <Card key={m.id} className="border-2 border-yellow-200">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-xl">{m.jobs?.title ?? "—"}</CardTitle>
-                      <p className="mt-1 text-lg text-gray-500">
-                        시니어: {m.seniors?.name ?? "—"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className="text-base px-3 py-1 bg-blue-600 text-white">
-                        {m.score}점
-                      </Badge>
-                      <ConfirmButton matchId={m.id} />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid grid-cols-3 gap-2 text-lg">
-                  <p>직종: {m.jobs?.job_type ?? "—"}</p>
-                  <p>지역: {m.jobs?.region ?? "—"}</p>
-                  <p>필요 경력: {m.jobs?.required_career ?? 0}년 이상</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* 배정 완료 */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold">배정 완료</h2>
-          <Badge className="bg-green-100 text-green-800 text-base px-3 py-1">
-            {confirmed.length}건
-          </Badge>
-        </div>
-        {confirmed.length === 0 ? (
-          <p className="text-lg text-gray-400 py-2">해당 없음</p>
-        ) : (
-          <div className="space-y-4">
-            {confirmed.map((m) => (
-              <Card key={m.id} className="border-2 border-green-200 bg-green-50">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-xl">{m.jobs?.title ?? "—"}</CardTitle>
-                      <p className="mt-1 text-lg text-gray-500">
-                        시니어: {m.seniors?.name ?? "—"}
-                      </p>
-                    </div>
-                    <Badge className="text-base px-3 py-1 bg-green-600 text-white">
-                      {m.score}점 · 확정
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid grid-cols-3 gap-2 text-lg">
-                  <p>직종: {m.jobs?.job_type ?? "—"}</p>
-                  <p>지역: {m.jobs?.region ?? "—"}</p>
-                  <p>필요 경력: {m.jobs?.required_career ?? 0}년 이상</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

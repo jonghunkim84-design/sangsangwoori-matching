@@ -9,7 +9,7 @@ export async function PATCH(
 
   const { error } = await supabase
     .from("matches")
-    .update({ status: "confirmed" })
+    .update({ status: "assigned" })
     .eq("id", id);
 
   if (error) {

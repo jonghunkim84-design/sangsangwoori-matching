@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type MatchRow = {
   id: string;
@@ -15,10 +17,16 @@ type MatchRow = {
   } | null;
 };
 
-function scoreBadgeClass(score: number) {
-  if (score >= 80) return "bg-green-600 hover:bg-green-600";
-  if (score >= 40) return "bg-blue-600 hover:bg-blue-600";
-  return "bg-gray-500 hover:bg-gray-500";
+function ScoreBadge({ score }: { score: number }) {
+  const cls =
+    score === 6
+      ? "bg-yellow-400 text-yellow-900 hover:bg-yellow-400"
+      : score >= 4
+      ? "bg-green-600 text-white hover:bg-green-600"
+      : "bg-gray-500 text-white hover:bg-gray-500";
+  return (
+    <Badge className={`shrink-0 text-lg px-4 py-2 ${cls}`}>{score}점</Badge>
+  );
 }
 
 export default async function RecommendationsPage({
@@ -28,21 +36,35 @@ export default async function RecommendationsPage({
 }) {
   const { senior_id } = await searchParams;
 
-  let query = supabase
+  if (!senior_id) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-4xl font-bold text-gray-900">맞춤 일자리 추천</h1>
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 py-16 text-center space-y-6">
+          <p className="text-2xl font-semibold text-amber-800">
+            프로필을 먼저 등록해 주세요
+          </p>
+          <a
+            href="/register"
+            className={cn(buttonVariants({ size: "lg" }), "text-xl py-6 px-10")}
+          >
+            프로필 등록하기
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const { data } = await supabase
     .from("matches")
     .select(
       "id, score, status, seniors(name), jobs(title, region, job_type, required_career)"
     )
+    .eq("senior_id", senior_id)
     .order("score", { ascending: false });
 
-  if (senior_id) query = query.eq("senior_id", senior_id);
-
-  const { data } = await query;
   const matches = (data ?? []) as unknown as MatchRow[];
-
-  const seniorName = senior_id && matches[0]?.seniors?.name
-    ? matches[0].seniors.name
-    : "";
+  const seniorName = matches[0]?.seniors?.name ?? "";
 
   return (
     <div className="space-y-8">
@@ -51,15 +73,17 @@ export default async function RecommendationsPage({
         <p className="mt-2 text-xl text-gray-600">
           {seniorName
             ? `${seniorName} 님의 추천 결과 · 점수 높은 순`
-            : "전체 매칭 결과 · 점수 높은 순"}
+            : "추천 결과 · 점수 높은 순"}
         </p>
       </div>
 
       {matches.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-gray-300 py-20 text-center">
-          <p className="text-2xl text-gray-400">매칭 결과가 없습니다</p>
-          <p className="mt-2 text-lg text-gray-400">
-            프로필을 등록하면 이 자리에 추천 결과가 표시됩니다
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 py-16 text-center space-y-2">
+          <p className="text-2xl font-semibold text-amber-800">
+            현재 매칭되는 일자리가 없습니다
+          </p>
+          <p className="text-lg text-amber-700">
+            담당자가 새 일자리를 등록하면 자동으로 매칭됩니다
           </p>
         </div>
       ) : (
@@ -68,21 +92,10 @@ export default async function RecommendationsPage({
             <Card key={m.id} className="border-2 border-gray-200">
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-2xl">
-                      {m.jobs?.title ?? "—"}
-                    </CardTitle>
-                    {!senior_id && (
-                      <p className="mt-1 text-lg text-gray-500">
-                        시니어: {m.seniors?.name ?? "—"}
-                      </p>
-                    )}
-                  </div>
-                  <Badge
-                    className={`shrink-0 text-lg px-4 py-2 text-white ${scoreBadgeClass(m.score)}`}
-                  >
-                    {m.score}점
-                  </Badge>
+                  <CardTitle className="text-2xl">
+                    {m.jobs?.title ?? "—"}
+                  </CardTitle>
+                  <ScoreBadge score={m.score} />
                 </div>
               </CardHeader>
               <CardContent className="grid grid-cols-3 gap-4 text-xl">

@@ -87,6 +87,9 @@ export default function JobManager() {
     setAdding(false);
     if (error || !data) return;
 
+    // 새 일자리에 대해 기존 시니어 재매칭
+    await supabase.rpc("match_job", { p_job_id: (data as Job).id });
+
     setJobs((prev) => [data as Job, ...prev]);
     setForm({ title: "", region: "", job_type: "", required_career: "" });
     setErrors({});
