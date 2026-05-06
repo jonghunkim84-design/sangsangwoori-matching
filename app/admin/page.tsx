@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ConfirmButton from "./ConfirmButton";
+import JobManager from "./JobManager";
 
 type SeniorRow = {
   id: string;
@@ -71,6 +72,16 @@ export default async function AdminPage() {
           </Card>
         ))}
       </div>
+
+      {/* 일자리 관리 */}
+      <div className="border-t-2 border-gray-200 pt-10">
+        <JobManager />
+      </div>
+
+      <div className="border-t-2 border-gray-200 pt-10" />
+
+      {/* 매칭 현황 */}
+      <h2 className="text-3xl font-bold text-gray-900">매칭 현황</h2>
 
       {/* 미매칭 */}
       <section className="space-y-4">

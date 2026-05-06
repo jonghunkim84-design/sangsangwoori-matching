@@ -1,66 +1,115 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { REGIONS, JOB_TYPES } from "@/lib/constants";
+import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
-const fields = [
-  { id: "name",        label: "이름",      placeholder: "홍길동",              type: "text"   },
-  { id: "region",      label: "거주 지역",  placeholder: "예: 서울 강남구",      type: "text"   },
-  { id: "desired_job", label: "희망 직종",  placeholder: "예: 경비원, 요양보호사", type: "text"   },
-  { id: "career_years",label: "경력 (년)",  placeholder: "예: 10",              type: "number" },
-] as const;
+type FormState = {
+  name: string;
+  region: string;
+  desired_job: string;
+  career_years: string;
+};
 
-type FormState = Record<(typeof fields)[number]["id"], string>;
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-red-400 bg-red-50 px-4 py-3 text-lg font-medium text-red-700">
+      {message}
+    </div>
+  );
+}
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [form, setForm] = useState<FormState>({
-    name: "", region: "", desired_job: "", career_years: "",
+    name: "",
+    region: "",
+    desired_job: "",
+    career_years: "",
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [serverError, setServerError] = useState("");
 
-  const handleChange = (id: keyof FormState) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((prev) => ({ ...prev, [id]: e.target.value }));
+  function validate(): FieldErrors {
+    const errs: FieldErrors = {};
+    if (!form.name.trim()) errs.name = "이름을 입력해 주세요.";
+    if (!form.region) errs.region = "지역을 선택해 주세요.";
+    if (!form.desired_job) errs.desired_job = "희망 직종을 선택해 주세요.";
+    return errs;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
     setLoading(true);
-    setError("");
+    setServerError("");
 
-    // 1. 시니어 등록
-    const { data: senior, error: insertError } = await supabase
-      .from("seniors")
-      .insert({
-        name:         form.name.trim(),
-        region:       form.region.trim(),
-        desired_job:  form.desired_job.trim(),
-        career_years: parseInt(form.career_years) || 0,
-      })
-      .select()
-      .single();
+    const { error } = await supabase.from("seniors").insert({
+      name: form.name.trim(),
+      region: form.region,
+      desired_job: form.desired_job,
+      career_years: parseInt(form.career_years) || 0,
+    });
 
-    if (insertError || !senior) {
-      setError("등록에 실패했습니다. 다시 시도해 주세요.");
-      setLoading(false);
+    setLoading(false);
+
+    if (error) {
+      setServerError("등록에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
 
-    // 2. 규칙 기반 매칭 실행
-    await fetch("/api/match", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senior_id: senior.id }),
-    });
+    setSuccess(true);
+    setForm({ name: "", region: "", desired_job: "", career_years: "" });
+    setErrors({});
+  }
 
-    // 3. 추천 결과 페이지로 이동
-    router.push(`/recommendations?senior_id=${senior.id}`);
+  if (success) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="rounded-2xl border-2 border-green-400 bg-green-50 p-10 text-center space-y-6">
+          <p className="text-4xl font-bold text-green-800">등록이 완료되었습니다</p>
+          <p className="text-xl text-green-700">
+            담당자가 매칭 결과를 확인 후 연락드립니다.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
+            <button
+              onClick={() => setSuccess(false)}
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "text-xl py-6 px-10 bg-white border-2 border-gray-300 text-gray-800 hover:bg-gray-50"
+              )}
+            >
+              추가 등록
+            </button>
+            <a
+              href="/recommendations"
+              className={cn(buttonVariants({ size: "lg" }), "text-xl py-6 px-10")}
+            >
+              추천 보기
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -77,28 +126,90 @@ export default function RegisterPage() {
           <CardTitle className="text-2xl">기본 정보</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {fields.map(({ id, label, placeholder, type }) => (
-              <div key={id} className="space-y-2">
-                <Label htmlFor={id} className="text-xl font-semibold">
-                  {label}
-                </Label>
-                <Input
-                  id={id}
-                  type={type}
-                  min={type === "number" ? "0" : undefined}
-                  value={form[id]}
-                  onChange={handleChange(id)}
-                  placeholder={placeholder}
-                  className="text-xl h-14 px-4"
-                  required
-                />
-              </div>
-            ))}
+          <form onSubmit={handleSubmit} noValidate className="space-y-6">
 
-            {error && (
-              <p className="text-red-600 text-lg font-medium">{error}</p>
-            )}
+            {/* 이름 */}
+            <div className="space-y-2">
+              {errors.name && <ErrorBox message={errors.name} />}
+              <Label htmlFor="name" className="text-xl font-semibold">
+                이름 <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="홍길동"
+                className={cn("text-xl h-14 px-4", errors.name && "border-red-400")}
+              />
+            </div>
+
+            {/* 지역 */}
+            <div className="space-y-2">
+              {errors.region && <ErrorBox message={errors.region} />}
+              <Label className="text-xl font-semibold">
+                지역 <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={form.region}
+                onValueChange={(v) => v && setForm((p) => ({ ...p, region: v }))}
+              >
+                <SelectTrigger
+                  className={cn("text-xl h-14 px-4", errors.region && "border-red-400")}
+                >
+                  <SelectValue placeholder="지역을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REGIONS.map((r) => (
+                    <SelectItem key={r} value={r} className="text-xl py-3">
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 희망 직종 */}
+            <div className="space-y-2">
+              {errors.desired_job && <ErrorBox message={errors.desired_job} />}
+              <Label className="text-xl font-semibold">
+                희망 직종 <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={form.desired_job}
+                onValueChange={(v) => v && setForm((p) => ({ ...p, desired_job: v }))}
+              >
+                <SelectTrigger
+                  className={cn("text-xl h-14 px-4", errors.desired_job && "border-red-400")}
+                >
+                  <SelectValue placeholder="희망 직종을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {JOB_TYPES.map((j) => (
+                    <SelectItem key={j} value={j} className="text-xl py-3">
+                      {j}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 경력 */}
+            <div className="space-y-2">
+              <Label htmlFor="career_years" className="text-xl font-semibold">
+                경력 (년)
+              </Label>
+              <Input
+                id="career_years"
+                type="number"
+                min="0"
+                value={form.career_years}
+                onChange={(e) => setForm((p) => ({ ...p, career_years: e.target.value }))}
+                placeholder="없으면 0"
+                className="text-xl h-14 px-4"
+              />
+            </div>
+
+            {serverError && <ErrorBox message={serverError} />}
 
             <Button
               type="submit"
@@ -106,7 +217,7 @@ export default function RegisterPage() {
               className="w-full text-xl py-6"
               disabled={loading}
             >
-              {loading ? "등록 및 매칭 중..." : "등록하기"}
+              {loading ? "등록 중..." : "등록하기"}
             </Button>
           </form>
         </CardContent>
