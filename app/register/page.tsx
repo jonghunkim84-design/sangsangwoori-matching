@@ -43,7 +43,7 @@ export default function RegisterPage() {
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [successSeniorId, setSuccessSeniorId] = useState<string | null>(null);
   const [serverError, setServerError] = useState("");
 
   function validate(): FieldErrors {
@@ -63,36 +63,47 @@ export default function RegisterPage() {
     setLoading(true);
     setServerError("");
 
-    const { error } = await supabase.from("seniors").insert({
-      name: form.name.trim(),
-      region: form.region,
-      desired_job: form.desired_job,
-      career_years: parseInt(form.career_years) || 0,
-    });
+    const { data: senior, error } = await supabase
+      .from("seniors")
+      .insert({
+        name: form.name.trim(),
+        region: form.region,
+        desired_job: form.desired_job,
+        career_years: parseInt(form.career_years) || 0,
+      })
+      .select()
+      .single();
 
-    setLoading(false);
-
-    if (error) {
+    if (error || !senior) {
+      setLoading(false);
       setServerError("등록에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
 
-    setSuccess(true);
+    // 규칙 기반 자동 매칭 실행
+    await fetch("/api/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ senior_id: senior.id }),
+    });
+
+    setLoading(false);
+    setSuccessSeniorId(senior.id);
     setForm({ name: "", region: "", desired_job: "", career_years: "" });
     setErrors({});
   }
 
-  if (success) {
+  if (successSeniorId) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="rounded-2xl border-2 border-green-400 bg-green-50 p-10 text-center space-y-6">
           <p className="text-4xl font-bold text-green-800">등록이 완료되었습니다</p>
           <p className="text-xl text-green-700">
-            담당자가 매칭 결과를 확인 후 연락드립니다.
+            자동 매칭이 완료되었습니다. 추천 결과를 확인해 보세요.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
             <button
-              onClick={() => setSuccess(false)}
+              onClick={() => setSuccessSeniorId(null)}
               className={cn(
                 buttonVariants({ size: "lg" }),
                 "text-xl py-6 px-10 bg-white border-2 border-gray-300 text-gray-800 hover:bg-gray-50"
@@ -101,10 +112,10 @@ export default function RegisterPage() {
               추가 등록
             </button>
             <a
-              href="/recommendations"
+              href={`/recommendations?senior_id=${successSeniorId}`}
               className={cn(buttonVariants({ size: "lg" }), "text-xl py-6 px-10")}
             >
-              추천 보기
+              내 추천 보기
             </a>
           </div>
         </div>
