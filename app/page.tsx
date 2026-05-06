@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const menuItems = [
   {
@@ -33,9 +34,12 @@ export default function HomePage() {
         <p className="text-2xl text-gray-600">
           경험과 역량에 맞는 일자리를 자동으로 찾아드립니다
         </p>
-        <Button asChild size="lg" className="text-xl px-10 py-6 mt-4">
-          <Link href="/register">지금 시작하기</Link>
-        </Button>
+        <Link
+          href="/register"
+          className={cn(buttonVariants({ size: "lg" }), "text-xl px-10 py-6 mt-4")}
+        >
+          지금 시작하기
+        </Link>
       </section>
 
       <section className="grid gap-6 md:grid-cols-3">
