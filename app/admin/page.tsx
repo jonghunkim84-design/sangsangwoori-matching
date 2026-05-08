@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { AlertTriangle, Clock, CheckCircle } from "lucide-react";
 import JobManager from "./JobManager";
 
 type SeniorRow = {
@@ -76,18 +78,24 @@ export default async function AdminPage() {
       count: unmatched.length,
       color: "bg-red-50 border-red-200",
       text: "text-red-700",
+      Icon: AlertTriangle,
+      iconColor: "text-red-500",
     },
     {
       label: "매칭 대기",
       count: pending.length,
       color: "bg-yellow-50 border-yellow-200",
       text: "text-yellow-700",
+      Icon: Clock,
+      iconColor: "text-yellow-500",
     },
     {
       label: "배정 완료",
       count: assigned.length,
       color: "bg-green-50 border-green-200",
       text: "text-green-700",
+      Icon: CheckCircle,
+      iconColor: "text-green-500",
     },
   ];
 
@@ -102,13 +110,16 @@ export default async function AdminPage() {
 
       {/* 요약 카드 */}
       <div className="grid grid-cols-3 gap-6">
-        {summary.map((s) => (
-          <Card key={s.label} className={`border-2 ${s.color}`}>
+        {summary.map(({ label, count, color, text, Icon, iconColor }) => (
+          <Card key={label} className={`border-2 ${color}`}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-2xl">{s.label}</CardTitle>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <Icon className={`w-6 h-6 ${iconColor}`} />
+                {label}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className={`text-5xl font-bold ${s.text}`}>{s.count}</p>
+              <p className={`text-5xl font-bold ${text}`}>{count}</p>
             </CardContent>
           </Card>
         ))}
@@ -166,9 +177,9 @@ export default async function AdminPage() {
                     <td className="px-4 py-4 text-right">
                       <a
                         href={`/recommendations?senior_id=${s.id}`}
-                        className="text-blue-600 hover:underline font-medium"
+                        className={buttonVariants({ variant: "default", size: "sm" })}
                       >
-                        상세보기
+                        상세 보기
                       </a>
                     </td>
                   </tr>

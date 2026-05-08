@@ -99,7 +99,7 @@ export default function RegisterPage() {
         <div className="rounded-2xl border-2 border-green-400 bg-green-50 p-10 text-center space-y-6">
           <p className="text-4xl font-bold text-green-800">등록이 완료되었습니다</p>
           <p className="text-xl text-green-700">
-            자동 매칭이 완료되었습니다. 추천 결과를 확인해 보세요.
+            담당자가 곧 연락드립니다.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
             <button
@@ -126,7 +126,7 @@ export default function RegisterPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-gray-900">프로필 등록</h1>
+        <h1 className="text-4xl font-bold text-gray-900">시니어 일자리 신청하기</h1>
         <p className="mt-2 text-xl text-gray-600">
           정보를 입력하시면 맞춤 일자리를 추천해 드립니다
         </p>
@@ -142,6 +142,7 @@ export default function RegisterPage() {
             {/* 이름 */}
             <div className="space-y-2">
               {errors.name && <ErrorBox message={errors.name} />}
+              <p className="text-lg text-gray-500">성함이 어떻게 되세요?</p>
               <Label htmlFor="name" className="text-xl font-semibold">
                 이름 <span className="text-red-500">*</span>
               </Label>
@@ -157,6 +158,7 @@ export default function RegisterPage() {
             {/* 지역 */}
             <div className="space-y-2">
               {errors.region && <ErrorBox message={errors.region} />}
+              <p className="text-lg text-gray-500">어디에서 일하고 싶으세요?</p>
               <Label className="text-xl font-semibold">
                 지역 <span className="text-red-500">*</span>
               </Label>
@@ -182,6 +184,7 @@ export default function RegisterPage() {
             {/* 희망 직종 */}
             <div className="space-y-2">
               {errors.desired_job && <ErrorBox message={errors.desired_job} />}
+              <p className="text-lg text-gray-500">어떤 일을 하시겠어요?</p>
               <Label className="text-xl font-semibold">
                 희망 직종 <span className="text-red-500">*</span>
               </Label>
@@ -206,6 +209,7 @@ export default function RegisterPage() {
 
             {/* 경력 */}
             <div className="space-y-2">
+              <p className="text-lg text-gray-500">경력은 몇 년이나 되세요?</p>
               <Label htmlFor="career_years" className="text-xl font-semibold">
                 경력 (년)
               </Label>

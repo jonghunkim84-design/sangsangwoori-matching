@@ -19,6 +19,12 @@ type MatchRow = {
   } | null;
 };
 
+function scoreLabel(score: number) {
+  if (score === 6) return "매우 적합";
+  if (score >= 4) return "적합";
+  return "보통";
+}
+
 function ScoreBadge({ score }: { score: number }) {
   const cls =
     score === 6
@@ -27,7 +33,10 @@ function ScoreBadge({ score }: { score: number }) {
       ? "bg-green-600 text-white hover:bg-green-600"
       : "bg-gray-500 text-white hover:bg-gray-500";
   return (
-    <Badge className={`shrink-0 text-lg px-4 py-2 ${cls}`}>{score}점</Badge>
+    <div className="flex items-center gap-2 shrink-0">
+      <Badge className={`text-lg px-4 py-2 ${cls}`}>{score}점</Badge>
+      <span className="text-base text-gray-500 whitespace-nowrap">{scoreLabel(score)}</span>
+    </div>
   );
 }
 
@@ -71,21 +80,22 @@ export default async function RecommendationsPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-gray-900">맞춤 일자리 추천</h1>
-        <p className="mt-2 text-xl text-gray-600">
-          {seniorName
-            ? `${seniorName} 님의 추천 결과 · 점수 높은 순`
-            : "추천 결과 · 점수 높은 순"}
-        </p>
+        <h1 className="text-4xl font-bold text-gray-900">
+          {seniorName ? `${seniorName} 님께 맞는 일자리` : "맞춤 일자리 추천"}
+        </h1>
+        <p className="mt-2 text-xl text-gray-600">점수 높은 순으로 정렬됩니다</p>
       </div>
 
       {matches.length === 0 ? (
-        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 py-16 text-center space-y-2">
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 py-16 text-center space-y-3">
           <p className="text-2xl font-semibold text-amber-800">
             현재 매칭되는 일자리가 없습니다
           </p>
           <p className="text-lg text-amber-700">
             담당자가 새 일자리를 등록하면 자동으로 매칭됩니다
+          </p>
+          <p className="text-lg text-amber-800 font-medium">
+            담당자가 직접 연락드리니 잠시만 기다려 주세요
           </p>
         </div>
       ) : (
